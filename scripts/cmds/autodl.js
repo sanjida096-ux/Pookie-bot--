@@ -1,92 +1,104 @@
-const { ShAnAlldl } = require("shan-server");
 const axios = require("axios");
+const fs = require("fs-extra");
+const path = require("path");
+
+const mahmud = async () => {
+        const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
+        return base.data.mahmud;
+};
 
 module.exports = {
-  config: {
-    name: "autodl",
-    version: "1.0",
-    role: 0,
-    usePrefix: false,
-    author: "♡︎ 𝗦𝗵𝗔𝗻 ♡︎",
-    shortDescription: {
-      en: "Auto download videos"
-    },
-    category: "media"
-  },
+        config: {
+                name: "autodl",
+                version: "1.7",
+                author: "MahMUD",
+                countDown: 0,
+                role: 0,
+                category: "media",
+                description: {
+                        en: "Automatically download videos from supported links",
+                        bn: "সাপোর্টেড লিঙ্ক থেকে স্বয়ংক্রিয়ভাবে ভিডিও ডাউনলোড করুন",
+                        vi: "Tự động tải video từ các liên kết được hỗ trợ"
+                },
+                guide: {
+                        en: "[just send the video link]",
+                        bn: "[শুধুমাত্র ভিডিও লিঙ্কটি পাঠান]",
+                        vi: "[chỉ cần gửi liên kết video]"
+                }
+        },
 
-  onStart: async function({ args, message, event, threadsData }) {
-    const inputStatus = args[0];
-    
-    if (!inputStatus) {
-      const data = (await threadsData.get(event.threadID, "data")) || {};
-      const current = data.autodl === "on" ? "ON ✅" : "OFF ❌";
-      return message.send(`• Auto-download is currently: ${current}\n\nUsage: autodl on/off`);
-    }
-    
-    if (role < 1) {
-      return message.reply("𝐎𝐩𝐩𝐬𝐬 𝐛𝐚𝐏𝐲 𝐲𝐨𝐮 𝐡𝐚𝐯𝐞 𝐧𝐨 𝐩𝐞𝐫𝐦𝐢𝐬𝐬𝐢𝐨𝐧")   
-    }
-      
-    if (!["on", "off"].includes(inputStatus)) {
-      return message.reply("❌ Invalid command\n✓ Use: autodl on/off");
-    }
-    const tData = (await threadsData.get(event.threadID, "data")) || {};
-    const currentStatus = tData.autodl;
-    
-    if (currentStatus === inputStatus) {
-      if (inputStatus === "on") {
-        return message.send("⚠️ Auto-download is already ON for this thread");
-      } else {
-        return message.send("⚠️ Auto-download is already OFF for this thread");
-      }
-    }
-    tData.autodl = inputStatus;
-    await threadsData.set(event.threadID, tData, "data");
-    
-    if (inputStatus === "on") {
-      return message.send("✅ Auto-download has been TURNED ON for this thread");
-    } else {
-      return message.send("❌ Auto-download has been TURNED OFF for this thread");
-    }
-  },
+        langs: {
+                bn: {
+                        error: "❌ An error occurred: contact MahMUD %1",
+                        success: "𝐇𝐞𝐫𝐞'𝐬 𝐲𝐨𝐮𝐫 %1 𝐯𝐢𝐝𝐞𝐨 𝐛𝐚𝐛𝐲 <😘\n\n•𝐀𝐃𝐌𝐈𝐍: 𝐌𝐚𝐡𝐌𝐔𝐃"
+                },
+                en: {
+                        error: "❌ An error occurred: contact MahMUD %1",
+                        success: "𝐇𝐞𝐫𝐞'𝐬 𝐲𝐨𝐮𝐫 %1 𝐯𝐢𝐝𝐞𝐨 𝐛𝐚𝐛𝐲 <😘\n\n•𝐀𝐃𝐌𝐈𝐍: 𝐌𝐚𝐡𝐌𝐔𝐃"
+                },
+                vi: {
+                        error: "❌ An error occurred: contact MahMUD %1",
+                        success: "𝐇𝐞𝐫𝐞'𝐬 𝐲𝐨𝐮𝐫 %1 𝐯𝐢𝐝𝐞𝐨 𝐛𝐚𝐛𝐲 <😘\n\n•𝐀𝐃𝐌𝐈𝐍: 𝐌𝐚𝐡𝐌𝐔𝐃"
+                }
+        },
 
-  onChat: async function({ event, message, threadsData }) {
-    const settings = (await threadsData.get(event.threadID, "data")) || {};
-    const isAutoDLEnabled = settings.autodl !== "off";
-    
-    if (!isAutoDLEnabled) return;
-    
-    const content = event.body || "";
-    
-    const urlPattern = /(https?:\/\/)?(www\.)?(tiktok\.com|vt\.tiktok\.com|instagram\.com|instagr\.am|pin\.it|pinterest\.com|youtu\.be|youtube\.com|twitter\.com|x\.com|facebook\.com|fb\.watch|fb\.me|capcut\.com|likee\.com|likee\.video|l\.likee\.video|threads\.com|threads\.net)\/[^\s]+/gi;
-    
-    const urls = content.match(urlPattern);
-    
-    if (!urls) return;
-    
-    for (const url of urls.slice(0, 3)) {
-      try {
-        const res = await ShAnAlldl(url, this.config.author);
+        onStart: async function () {},
+        onChat: async function ({ api, event, getLang }) {
+                const authorName = String.fromCharCode(77, 97, 104, 77, 85, 68);
+                if (this.config.author !== authorName) {
+                        return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
+                }
 
-        if (res.status !=="success") {
-          throw new Error("api failed"); 
+                if (!event.body) return;
+                const supportedSites = /https?:\/\/(www\.)?(vt\.tiktok\.com|tiktok\.com|facebook\.com|fb\.watch|instagram\.com|youtu\.be|youtube\.com|x\.com|twitter\.com|vm\.tiktok\.com)/gi;
+                
+                if (supportedSites.test(event.body)) {
+                        const links = event.body.match(/https?:\/\/\S+/gi);
+                        if (!links) return;
+                        const link = links[0];
+
+                        let platform = "𝚄𝚗𝚔𝚗𝚘𝚠𝚗";
+                        if (link.includes("facebook.com") || link.includes("fb.watch")) platform = "𝐅𝐚𝐜𝐞𝐛𝐨𝐨𝐤";
+                        else if (link.includes("instagram.com")) platform = "𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦";
+                        else if (link.includes("tiktok.com")) platform = "𝐓𝐢𝐤𝐓𝐨𝐤";
+                        else if (link.includes("youtube.com") || link.includes("youtu.be")) platform = "𝐘𝐨𝐮𝐓𝐮𝐛𝐞";
+                        else if (link.includes("x.com") || link.includes("twitter.com")) platform = "𝐗 (𝐓𝐰𝐢𝐭𝐭𝐞𝐫)";
+
+                        const cacheDir = path.join(__dirname, "cache");
+                        const filePath = path.join(cacheDir, `autodl_${Date.now()}.mp4`);
+
+                        try {
+                                api.setMessageReaction("⏳", event.messageID, () => { }, true);
+                                if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+
+                                const base = await mahmud();
+                                const apiUrl = `${base}/api/download/video?link=${encodeURIComponent(link)}`;
+                                
+                                const response = await axios({
+                                        method: 'get',
+                                        url: apiUrl,
+                                        responseType: 'arraybuffer',
+                                        headers: {
+                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+                                        }
+                                });
+
+                                fs.writeFileSync(filePath, Buffer.from(response.data));
+                                if (fs.statSync(filePath).size < 1000) throw new Error("Invalid video data.");
+                                api.setMessageReaction("🪽", event.messageID, () => { }, true);
+                                 
+                                return api.sendMessage({
+                                        body: getLang("success", platform),
+                                        attachment: fs.createReadStream(filePath)
+                                }, event.threadID, () => {
+                                        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                                }, event.messageID);
+
+                        } catch (err) {
+                                console.error("autodl error:", err.message);
+                                api.setMessageReaction("❌", event.messageID, () => { }, true);
+                                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                        }
+                }
         }
-        
-        const videoStream = await axios.get(res.ShAn, { 
-          responseType: "stream",
-          timeout: 30000
-        });
-        await message.reaction("✔️", event.messageID);
-        
-        await message.reply({
-          body: res.msg,
-          attachment: videoStream.data
-        });
-        
-      } catch (error) {
-        await message.reaction("❌️", event.messageID);
-        console.error("Auto-download error:", error);
-      }
-    }
-  }
 };
